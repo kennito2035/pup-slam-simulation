@@ -1,6 +1,6 @@
 # Parameter Uplink Spectagraph (PUP) v1.0.0
 
-A real-time 3D LiDAR SLAM simulation built with Three.js. PUP visualizes how different multi-sensor configurations scan and map an indoor environment as a drone traverses a corridor, rendering live point cloud heat maps, path traces, and spatial analytics (prototype is inspired from Prometheus 2012).
+A real-time 3D LiDAR SLAM simulation built with Three.js. PUP visualizes how different multi-sensor configurations scan and map an indoor environment as a drone traverses a corridor, rendering live point cloud heat maps, path traces, and spatial analytics (prototype is inspired by Prometheus 2012).
 
 ---
 
