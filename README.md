@@ -25,7 +25,7 @@ A real-time 3D LiDAR SLAM simulation built with Three.js. PUP visualizes how dif
 ## File Structure
 
 ```
-PUP-v1_3.html   # Main entry point and UI markup
+PUP-v1.3.html   # Main entry point and UI markup
 script.js       # Simulation logic, Three.js scene, scanner math, minimap renderer
 styles.css      # Dark-mode UI styling
 ```
