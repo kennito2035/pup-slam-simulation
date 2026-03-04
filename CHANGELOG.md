@@ -7,7 +7,7 @@ All notable changes to Parameter Uplink Spectagraph (PUP) are documented here.
 ## [1.4.0] — PUP-v1.4.html
 
 ### Added
-- **Monte Carlo geometric blind spot calculator** — `calculateGeometricBlindSpot(n)` casts 1,000 random rays uniformly distributed across a unit sphere and checks each against every scanner plane normal (thickness `0.04`). The percentage of rays not captured by any plane is reported as the geometric blind spot. This replaces the previous hardcoded per-config weight table and is recomputed each time the geometry configuration is switched. Alert threshold changed from 30% to 50%.
+- **Monte Carlo blind spot calculator** — `calculateGeometricBlindSpot(n)` casts 1,000 random rays uniformly distributed across a unit sphere and checks each against every scanner plane normal (thickness `0.04`). The percentage of rays not captured by any plane is reported as the geometric blind spot. This replaces the previous hardcoded per-config weight table and is recomputed each time the geometry configuration is switched. Alert threshold changed from 30% to 50%.
 - **Per-scanner minimum ranging distance** — New slider per scanner card (0.01–10.00 m, default 0.05 m). Stored as `s.minDist` and used in the hot loop in place of the global `RANGE_MIN` constant.
 - **Per-scanner maximum ranging distance** — New slider per scanner card (1.00–100.00 m, default 12.00 m). Stored as `s.maxDist`, used in the hot loop in place of `RANGE_MAX`, and drives a live visual scale on the scanner's wedge mesh (`wedge.scale.set(val / RANGE_MAX, val / RANGE_MAX, 1)`).
 - **Per-scanner ranging frequency** — New slider per scanner card (2–800 kHz, default 4 kHz). Stored as `s.rangeHz` in Hz (input × 1000) and feeds the angular resolution formula.
