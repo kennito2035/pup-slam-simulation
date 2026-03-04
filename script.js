@@ -694,14 +694,9 @@ function animate() {
         // Minimap UI Text Overlay
         ctx.font = "12px monospace";
 
-        // Clear the text area to prevent ghosting
-        ctx.fillStyle = "rgba(5, 7, 10, 1)";
-        ctx.fillRect(5, 165, 80, 35);
-
         // Coordinates
-        ctx.fillStyle = "#ffffff";
-        ctx.fillText(`X: ${drone.position.x.toFixed(2)}`, 10, 178);
-        ctx.fillText(`Z: ${drone.position.z.toFixed(2)}`, 10, 192);
+        document.getElementById('coord-x').textContent = `X: ${drone.position.x.toFixed(2)}`;
+        document.getElementById('coord-z').textContent = `Z: ${drone.position.z.toFixed(2)}`;
 
         // Draw the drone (center)
         const dX = (drone.position.x / ROOM_SIZE.x + 0.5) * 200;

@@ -1,4 +1,4 @@
-# Parameter Uplink Spectagraph (PUP) v1.4.0
+# Parameter Uplink Spectagraph (PUP) v1.4.1
 
 A real-time 3D LiDAR SLAM simulation built with Three.js. PUP visualizes how different multi-sensor configurations scan and map an indoor environment as a drone traverses a corridor, rendering live point cloud heat maps, path traces, spatial analytics, and a 2D minimap overlay (prototype is inspired by Prometheus 2012).
 
@@ -7,35 +7,37 @@ A real-time 3D LiDAR SLAM simulation built with Three.js. PUP visualizes how dif
 ## Features
 
 - **Three LiDAR array geometries** — Orthogonal (2-sensor), Tetrahedral (4-sensor), and Octahedral (6-sensor) configurations, each modelling real-world multi-scanner arrangements
-- **Monte Carlo blind spot estimation** — Geometric blind spot is computed at config-switch time by casting 1,000 random rays across a unit sphere and checking coverage against each scanner's plane normal, replacing the previous hardcoded weight table
-- **Per-scanner ranging controls** — Each scanner independently exposes scanning frequency (0–100 Hz), ranging frequency (2–800 kHz), minimum ranging distance (0.01–10.00 m), and maximum ranging distance (1.00–100.00 m)
-- **Angular resolution readout** — Displayed live per scanner, computed as `(scanHz / rangeHz) × 360°`
-- **Broad-phase AABB rejection** — Per-axis distance check against `maxDist` before the full squared-distance test, significantly reducing unnecessary computation in the ray-cast hot loop
-- **Live point cloud rendering** — 90,000 environment points rendered via custom GLSL shaders with heat-map coloring (cyan → yellow → red) reflecting scan hit density
-- **Sensor offset mode** — Toggleable physical offset displacing each scanner's ray origin to its true hull-mounted position, with beam and normal vectors rotated to match drone attitude
-- **Rotational wobble** — Drone roll and pitch animate alongside positional drift, causing beam directions to shift realistically during flight
-- **2D minimap overlay** — Live top-down canvas with radar-trace decay, drone position marker, and X/Z coordinate readout; pinned to the bottom-right corner
-- **Rolling shutter simulation** — 3 sub-steps per frame, interpolating beam angle and drone position during each sweep
+- **Live point cloud rendering** — 90,000 environment points rendered via custom GLSL shaders with a smooth heat-map fade (background → cyan → yellow → red) driven by scan hit density
+- **Proximity fade on obstacles** — Ghost pillars brighten quadratically as the camera approaches, fading from near-invisible at range to semi-opaque up close
+- **Per-sensor minimap markers** — Each active scanner is drawn as a colored dot on the minimap at its true hull-offset position, reflecting sensor offset state
+- **DOM-based minimap coordinate overlay** — X/Z coordinates are rendered as HTML elements over the minimap canvas with text-shadow outlines, eliminating per-frame canvas text ghosting
+- **Throttled DOM updates** — Spatial analytics panel updates at 5 Hz rather than every frame, reducing layout thrashing at high simulation speeds
+- **Render order and transparency fixes** — Explicit `renderOrder` assignments and `renderer.sortObjects = true` correct transparency layering between the point cloud, pillars, and UI geometry
+- **Monte Carlo blind spot estimation** — Geometric blind spot computed at config-switch time by casting 1,000 random rays across a unit sphere
+- **Per-scanner ranging controls** — Each scanner independently exposes scanning frequency, ranging frequency, min/max ranging distance, and angular resolution
+- **Broad-phase AABB rejection** — Per-axis distance check before full squared-distance test in the ray-cast hot loop
+- **Sensor offset mode** — Toggleable hull-mounted sensor offset with beam and normal vectors rotated to match drone attitude
+- **Rotational wobble** — Drone roll and pitch animate alongside positional drift
+- **Rolling shutter simulation** — 3 sub-steps per frame, interpolating beam angle and drone position
 - **Incidence angle reflectivity** — Hit intensity weighted by beam angle of incidence against wall surfaces
 - **Camera modes** — Isometric (free orbit), Follow (third-person drone), and FPV (first-person)
 - **Path trace** — White trail showing the drone's flight history through the scene
-- **Ghost obstacles** — Semi-transparent pillars representing physical obstructions in the mapped room
 
 ---
 
 ## File Structure
 
 ```
-PUP-v1.4.html   # Main entry point and UI markup
-script.js       # Simulation logic, Three.js scene, scanner math, minimap renderer
-styles.css      # Dark-mode UI styling
+PUP-v1.4.1.html   # Main entry point and UI markup
+script.js         # Simulation logic, Three.js scene, scanner math, minimap renderer
+styles.css        # Dark-mode UI styling
 ```
 
 ---
 
 ## Usage
 
-Open `PUP-v1.4.html` in any modern browser. No build step or server required — all dependencies are loaded from CDN.
+Open `PUP-v1.4.1.html` in any modern browser. No build step or server required — all dependencies are loaded from CDN.
 
 > Requires an internet connection on first load to fetch Three.js (`r128`) and the Inter font.
 
@@ -60,7 +62,6 @@ Open `PUP-v1.4.html` in any modern browser. No build step or server required —
 | **FPV** | First-person view from the drone's nose |
 
 ### Drone Wobble (Inertial)
-Simulates real-world flight instability. Wobble drives both positional drift and rotational attitude (roll + pitch).
 
 | Axis | Default | Effect |
 |---|---|---|
@@ -86,8 +87,6 @@ Each active scanner card exposes:
 | CW / CCW badge | — | CW |
 | Angular resolution | computed readout | 0.54° |
 
-The scanning wedge mesh scales visually to match each scanner's maximum ranging distance.
-
 ### Visibility
 - **⦿ Point Cloud** — Show/hide the scanned point cloud
 - **⌇ Trace Path** — Show/hide the drone's flight trail
@@ -96,7 +95,7 @@ The scanning wedge mesh scales visually to match each scanner's maximum ranging 
 
 ## Minimap
 
-A 200×200 px 2D canvas pinned to the bottom-right corner. Hit points are batch-drawn each frame via a single `beginPath/fill` call. A partial fade each frame creates a radar-trace decay effect. The drone's current X/Z position is shown as a marker with a live coordinate readout.
+A 200×200 px 2D canvas pinned to the bottom-right corner. Features a white drone position circle, per-scanner colored dots reflecting hull offset positions, and a radar-trace hit decay effect. X/Z coordinate readout is rendered as HTML (`#minimap-coords`) with a four-direction text-shadow outline, positioned absolutely over the canvas to prevent ghosting from the canvas clear cycle.
 
 ---
 
@@ -106,10 +105,10 @@ A 200×200 px 2D canvas pinned to the bottom-right corner. Hit points are batch-
 |---|---|
 | **Distance** | Cumulative drone flight distance in meters |
 | **Map coverage** | Percentage of environment points hit by at least one scan |
-| **Blind spots** | Monte Carlo geometric blind spot for the active configuration |
+| **Blind spots** | Remaining unscanned percentage of the point cloud during flight; geometric Monte Carlo estimate at rest |
 | **Max hits** | Highest scan hit density recorded on a single point |
 
-Blind spot turns red when the geometric gap exceeds 50% of the sphere.
+All analytics readouts update at 5 Hz to avoid DOM thrashing.
 
 ---
 
