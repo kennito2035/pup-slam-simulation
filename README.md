@@ -34,7 +34,7 @@ styles.css      # Dark-mode UI styling
 
 ## Usage
 
-Open `PUP-v1_3.html` in any modern browser. No build step or server required — all dependencies are loaded from CDN.
+Open `PUP-v1.3.html` in any modern browser. No build step or server required — all dependencies are loaded from CDN.
 
 > Requires an internet connection on first load to fetch Three.js (`r128`) and the Inter font.
 
