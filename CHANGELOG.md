@@ -4,7 +4,7 @@ All notable changes to Parameter Uplink Spectagraph (PUP) are documented here.
 
 ---
 
-## [1.3.0] — PUP-v1_3.html
+## [1.3.0] — PUP-v1.3.html
 
 ### Added
 - **Sensor offset toggle** — New `▧ SENSOR OFFSET IS OFF/ON` button in the Global Control panel calls `toggleOffset()`, flipping the `useOffset` boolean. When enabled, each scanner's ray origin is displaced by a `(0, 0.8, 0)` local vector transformed into world space via `s.pivot.quaternion` and `drone.rotation`, placing the scan source at the sensor's true hull-mounted position rather than the drone's centroid. The scanning wedge mesh shifts its `position.y` to match (`0.8` when on, `0` when off).
@@ -22,7 +22,7 @@ All notable changes to Parameter Uplink Spectagraph (PUP) are documented here.
 
 ---
 
-## [1.2.0] — PUP-v1_2.html
+## [1.2.0] — PUP-v1.2.html
 
 ### Added
 - **2D minimap overlay** — A 200×200 px `<canvas id="minimap">` element rendered in a fixed `#minimap-container` div pinned to the bottom-right corner. Each frame, newly scanned points are painted as 1×1 px pixels. A partial fade (`rgba(0,0,0,0.05)` fill each frame) creates a radar-trace decay effect. The drone's current X/Z position is drawn as a marker with a live coordinate readout.
@@ -38,7 +38,7 @@ All notable changes to Parameter Uplink Spectagraph (PUP) are documented here.
 
 ---
 
-## [1.1.0] — PUP-v1_1.html
+## [1.1.0] — PUP-v1.1.html
 
 ### Added
 - **Drone Wobble (Inertial) panel** — Three independent sliders for X (default 0.10), Y (default 0.10), and Z (default 0.05) drift axes. Exposed as a `wobble` object updated inline via `oninput` handlers.
@@ -57,7 +57,7 @@ All notable changes to Parameter Uplink Spectagraph (PUP) are documented here.
 
 ---
 
-## [1.0.0] — PUP-v1_0.html
+## [1.0.0] — PUP-v1.0.html
 
 Initial release.
 
