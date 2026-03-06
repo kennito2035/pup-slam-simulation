@@ -111,8 +111,8 @@ const environmentObjects = [];
 const roomGeo = new THREE.BoxGeometry(ROOM_SIZE.x, ROOM_SIZE.y, ROOM_SIZE.z);
 const roomMat = new THREE.LineBasicMaterial({
     color: 0xffffff,
-    transparent: false,
-    opacity: 1,
+    transparent: true,
+    opacity: 0.1,
     depthWrite: true
 });
 const roomWire = new THREE.LineSegments(new THREE.EdgesGeometry(roomGeo), roomMat);
@@ -245,6 +245,15 @@ drone.add(droneRibs, droneCore);
 scene.add(drone);
 
 const idealPos = new THREE.Vector3();
+const raycaster = new THREE.Raycaster(); // Global raycaster for occlusion
+const rayOrigin = new THREE.Vector3();
+
+// Define the physical boundaries of the room to clip the laser beams
+const roomBox = new THREE.Box3(
+    new THREE.Vector3(-ROOM_SIZE.x / 2, -ROOM_SIZE.y / 2, -ROOM_SIZE.z / 2),
+    new THREE.Vector3(ROOM_SIZE.x / 2, ROOM_SIZE.y / 2, ROOM_SIZE.z / 2)
+);
+const boxHit = new THREE.Vector3(); // Reusable vector for wall hits
 
 let scanners = [],
     pathHistory = [];
@@ -604,12 +613,15 @@ function animate() {
             const subSteps = 3; // Reduced from 8 to 3 to prevent "loop of death" frame drops
             const stepDt = dt / subSteps;
             const stepMove = step / subSteps;
-
-            const offsetVec = useOffset ?
-                new THREE.Vector3(0, 0.8, 0).applyQuaternion(s.pivot.quaternion).applyEuler(drone.rotation) :
-                new THREE.Vector3(0, 0, 0);
+			
+			// Track the shortest ray hit for this entire frame to size the wedge
+            let frameMinDist = s.maxDist;
 
             for (let j = 0; j < subSteps; j++) {
+				const offsetVec = useOffset
+					? new THREE.Vector3(0,0.8,0).applyQuaternion(s.pivot.quaternion)
+					: new THREE.Vector3(0,0,0);
+				
                 // Rolling shutter: Interpolate angle and position
                 const subAngle = s.angle + (Math.PI * 2 * s.hz * s.dir) * (stepDt * j);
 
@@ -618,15 +630,43 @@ function animate() {
                 const subY = drone.position.y + offsetVec.y;
                 const subZ = (droneZ + (stepMove * j)) + offsetVec.z;
 
-                // Apply drone's rotation to the beam vector
-                const beamDir = new THREE.Vector3(Math.cos(subAngle), 0, Math.sin(subAngle))
-                    .applyQuaternion(s.pivot.quaternion)
-                    .applyEuler(drone.rotation);
+				// Calculate beam direction for this substep
+				const beamDir = new THREE.Vector3(
+					Math.cos(subAngle),
+					0,
+					Math.sin(subAngle)
+				)
+				.applyQuaternion(s.pivot.quaternion)
+				.normalize();
 
                 // Apply drone's rotation to the normal vector
                 const currentNormal = s.normal.clone().applyEuler(drone.rotation);
 
                 const hitThreshold = 0.999 + (0.0009 * (1 - Math.min(s.rangeHz / 200000, 1)));
+
+				// Shoot a ray from the sensor outwards along the beam direction
+				rayOrigin.set(subX, subY, subZ);
+				raycaster.set(rayOrigin, beamDir);
+				const intersects = raycaster.intersectObjects(environmentObjects, false);
+
+				// Default to the scanner's max distance
+				let blockDist = s.maxDist;
+				
+				// Check if the beam hits the room boundaries (walls)
+                if (raycaster.ray.intersectBox(roomBox, boxHit)) {
+                    const wallDist = rayOrigin.distanceTo(boxHit);
+                    if (wallDist < blockDist) blockDist = wallDist;
+                }
+
+                // Check if the beam hits a pillar (overrides wall if closer)
+                if (intersects.length > 0 && intersects[0].distance < blockDist) {
+                    blockDist = intersects[0].distance; 
+                }
+
+                // Log the shortest distance found in this substep
+                if (blockDist < frameMinDist) {
+                    frameMinDist = blockDist;
+                }
 
                 // Calculate vector from the MODULE to the POINT (instead of drone center)
                 for (let i = 0; i < NUM_POINTS; i++) {
@@ -644,6 +684,11 @@ function animate() {
                     if (dSq < (s.minDist * s.minDist) || dSq > (s.maxDist * s.maxDist)) continue;
 
                     const mag = Math.sqrt(dSq);
+					
+					// If the point is further away than the pillar we hit, skip it!
+					// We add +0.5 to allow the front surface points of the pillar itself to scan
+					if (mag > blockDist + 0.5) continue;
+					
                     const pVx = dx / mag;
                     const pVy = dy / mag;
                     const pVz = dz / mag;
@@ -675,6 +720,11 @@ function animate() {
                     }
                 }
             }
+
+			// Apply the shortest distance scale to the visual wedge
+            // We divide by RANGE_MAX because that was the base size of the CircleGeometry
+            const scaleVal = Math.max(0.01, frameMinDist / RANGE_MAX); // Clamped at 0.01 to prevent math errors
+            s.wedge.scale.set(scaleVal, scaleVal, 1);
 
             // Update the final angle for the next frame
             s.angle += (Math.PI * 2 * s.hz * s.dir) * dt;
@@ -709,9 +759,9 @@ function animate() {
         // 2. Draw the LiDAR sensors (reflect SENSOR OFFSET)
         scanners.forEach(s => {
             // Calculate the physical offset vector of the sensor
-            const offsetVec = useOffset ?
-                new THREE.Vector3(0, 0.8, 0).applyQuaternion(s.pivot.quaternion).applyEuler(drone.rotation) :
-                new THREE.Vector3(0, 0, 0);
+			const offsetVec = useOffset
+				? new THREE.Vector3(0, 0.8, 0).applyQuaternion(s.pivot.quaternion)
+				: new THREE.Vector3(0, 0, 0);
 
             // Translate to Minimap 2D coordinates
             const sX = ((drone.position.x + offsetVec.x) / ROOM_SIZE.x + 0.5) * 200;
