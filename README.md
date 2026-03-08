@@ -7,7 +7,7 @@ A real-time 3D LiDAR SLAM simulation built with Three.js. PUP visualizes how dif
 ## Features
 
 - **Three LiDAR array geometries** — Orthogonal (2-sensor), Tetrahedral (4-sensor), and Octahedral (6-sensor) configurations, each modelling real-world multi-scanner arrangements
-- **Raycaster occlusion** — Each beam sub-step fires a `THREE.Raycaster` along the beam direction and tests against both the room bounding box and pillar meshes. Points behind the nearest hit are skipped, preventing scans from passing through solid geometry
+- **Raycaster occlusion** — Each beam sub-step fires a `THREE.Raycaster` along the beam direction and tests against both the room bounding box and pillar meshes. The points behind the nearest hit are skipped, preventing scans from passing through solid geometry
 - **Live point cloud rendering** — 90,000 environment points rendered via custom GLSL shaders; points grow smoothly from 1.0× to 2.8× size as they accumulate hits via a `mix()` blend in the vertex shader
 - **Dynamic wedge scaling** — Each scanner's visual wedge scales to reflect the shortest ray intersection detected that frame, giving a live visual readout of nearest-surface distance
 - **Monte Carlo blind spot estimation** — Geometric blind spot computed at config-switch time by casting 1,000 random rays across a unit sphere
