@@ -90,6 +90,7 @@ const renderer = new THREE.WebGLRenderer({
     canvas: document.getElementById('canvas'),
     antialias: true
 });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x010306, 1);
 
@@ -247,6 +248,7 @@ scene.add(drone);
 const idealPos = new THREE.Vector3();
 const raycaster = new THREE.Raycaster(); // Global raycaster for occlusion
 const rayOrigin = new THREE.Vector3();
+const beamDir = new THREE.Vector3(); // Reusable beam direction for the scan loop
 
 // Define the physical boundaries of the room to clip the laser beams
 const roomBox = new THREE.Box3(
@@ -405,7 +407,7 @@ function switchConfig(n) {
         pivot.add(wedge);
 
         // Logic and UI
-        scanners.push({
+        const scanner = {
             pivot,
             wedge,
             hz: 6,
@@ -413,13 +415,14 @@ function switchConfig(n) {
             angle: 0,
             dir: 1,
             normal: new THREE.Vector3(0, 1, 0).applyQuaternion(pivot.quaternion),
-            minDist: 0.05, // Default min ranging distance
-            maxDist: 12.00, // Default max ranging distance
+            minDist: RANGE_MIN, // Default min ranging distance
+            maxDist: RANGE_MAX, // Default max ranging distance
             color: color
-        });
+        };
+        scanners.push(scanner);
 
-        // Set initial visual scale for the 12.00m default
-        const initialScale = 12.00 / RANGE_MAX;
+        // Set initial visual scale for the default max ranging distance
+        const initialScale = scanner.maxDist / RANGE_MAX;
         wedge.scale.set(initialScale, initialScale, 1);
 
         const card = document.createElement('div');
@@ -441,27 +444,31 @@ function switchConfig(n) {
                         </div>
 						<div class="ctrl-row">
 							<label>Minimum ranging distance</label>
-							<input type="range" min="0.01" max="10.00" step="0.01" value="0.05" oninput="updateMinDist(${i}, this.value)">
-							<span class="readout" id="min-txt-${i}">0.05 m</span>
+							<input type="range" min="0.01" max="10.00" step="0.01" value="${RANGE_MIN}" oninput="updateMinDist(${i}, this)">
+							<span class="readout" id="min-txt-${i}">${RANGE_MIN.toFixed(2)} m</span>
 						</div>
 						<div class="ctrl-row">
 							<label>Maximum ranging distance</label>
-							<input type="range" min="1.00" max="100.00" step="1" value="${RANGE_MAX}" oninput="updateMaxDist(${i}, this.value)">
-							<span class="readout" id="max-txt-${i}">12.00 m</span>
+							<input type="range" min="1.00" max="100.00" step="1" value="${RANGE_MAX}" oninput="updateMaxDist(${i}, this)">
+							<span class="readout" id="max-txt-${i}">${RANGE_MAX.toFixed(2)} m</span>
 						</div>
                         <span class="res-tag" id="res-${i}">Angular resolution: 0.54°</span>`;
         list.appendChild(card);
     });
 }
 
-function updateMinDist(i, v) {
-    const val = parseFloat(v);
+function updateMinDist(i, el) {
+    // Clamp so the minimum ranging distance never exceeds the current maximum
+    const val = Math.min(parseFloat(el.value), scanners[i].maxDist);
+    el.value = val;
     scanners[i].minDist = val;
     document.getElementById(`min-txt-${i}`).innerText = val.toFixed(2) + ' m';
 }
 
-function updateMaxDist(i, v) {
-    const val = parseFloat(v);
+function updateMaxDist(i, el) {
+    // Clamp so the maximum ranging distance never drops below the current minimum
+    const val = Math.max(parseFloat(el.value), scanners[i].minDist);
+    el.value = val;
     scanners[i].maxDist = val;
     document.getElementById(`max-txt-${i}`).innerText = val.toFixed(2) + ' m';
 
@@ -613,41 +620,43 @@ function animate() {
             const subSteps = 3; // Reduced from 8 to 3 to prevent "loop of death" frame drops
             const stepDt = dt / subSteps;
             const stepMove = step / subSteps;
-			
-			// Track the shortest ray hit for this entire frame to size the wedge
+
+            // Track the shortest ray hit for this entire frame to size the wedge
             let frameMinDist = s.maxDist;
 
+            // Constant for the whole frame, so computed once per scanner
+            const offsetVec = useOffset
+                ? new THREE.Vector3(0, 0.8, 0).applyQuaternion(s.pivot.quaternion).applyEuler(drone.rotation)
+                : new THREE.Vector3(0, 0, 0);
+
+            // Apply drone's rotation to the normal vector
+            const currentNormal = s.normal.clone().applyEuler(drone.rotation);
+
+            const hitThreshold = 0.999 + (0.0009 * (1 - Math.min(s.rangeHz / 200000, 1)));
+
             for (let j = 0; j < subSteps; j++) {
-				const offsetVec = useOffset
-					? new THREE.Vector3(0,0.8,0).applyQuaternion(s.pivot.quaternion)
-					: new THREE.Vector3(0,0,0);
-				
-                // Rolling shutter: Interpolate angle and position
+                // Rolling shutter: Interpolate angle and position across the elapsed frame
                 const subAngle = s.angle + (Math.PI * 2 * s.hz * s.dir) * (stepDt * j);
 
                 // Origin now accounts for the sensor's physical location on the hull
                 const subX = drone.position.x + offsetVec.x;
                 const subY = drone.position.y + offsetVec.y;
-                const subZ = (droneZ + (stepMove * j)) + offsetVec.z;
+                const subZ = ((drone.position.z - step) + (stepMove * j)) + offsetVec.z;
 
-				// Calculate beam direction for this substep
-				const beamDir = new THREE.Vector3(
-					Math.cos(subAngle),
-					0,
-					Math.sin(subAngle)
-				)
-				.applyQuaternion(s.pivot.quaternion)
-				.normalize();
+                // Beam direction for this substep, rotated to match drone attitude
+                beamDir.set(
+                    Math.cos(subAngle),
+                    0,
+                    Math.sin(subAngle)
+                )
+                .applyQuaternion(s.pivot.quaternion)
+                .applyEuler(drone.rotation)
+                .normalize();
 
-                // Apply drone's rotation to the normal vector
-                const currentNormal = s.normal.clone().applyEuler(drone.rotation);
-
-                const hitThreshold = 0.999 + (0.0009 * (1 - Math.min(s.rangeHz / 200000, 1)));
-
-				// Shoot a ray from the sensor outwards along the beam direction
-				rayOrigin.set(subX, subY, subZ);
-				raycaster.set(rayOrigin, beamDir);
-				const intersects = raycaster.intersectObjects(environmentObjects, false);
+                // Shoot a ray from the sensor outwards along the beam direction
+                rayOrigin.set(subX, subY, subZ);
+                raycaster.set(rayOrigin, beamDir);
+                const intersects = raycaster.intersectObjects(environmentObjects, false);
 
 				// Default to the scanner's max distance
 				let blockDist = s.maxDist;
@@ -741,9 +750,6 @@ function animate() {
             ctx.fill();
         }
 
-        // Minimap UI Text Overlay
-        ctx.font = "12px monospace";
-
         // Coordinates
         document.getElementById('coord-x').textContent = `X: ${drone.position.x.toFixed(2)}`;
         document.getElementById('coord-z').textContent = `Z: ${drone.position.z.toFixed(2)}`;
@@ -759,9 +765,9 @@ function animate() {
         // 2. Draw the LiDAR sensors (reflect SENSOR OFFSET)
         scanners.forEach(s => {
             // Calculate the physical offset vector of the sensor
-			const offsetVec = useOffset
-				? new THREE.Vector3(0, 0.8, 0).applyQuaternion(s.pivot.quaternion)
-				: new THREE.Vector3(0, 0, 0);
+            const offsetVec = useOffset
+                ? new THREE.Vector3(0, 0.8, 0).applyQuaternion(s.pivot.quaternion).applyEuler(drone.rotation)
+                : new THREE.Vector3(0, 0, 0);
 
             // Translate to Minimap 2D coordinates
             const sX = ((drone.position.x + offsetVec.x) / ROOM_SIZE.x + 0.5) * 200;
@@ -879,7 +885,6 @@ switchConfig(4);
 
 // Forces the engine to calculate transparency more accurately during rotation
 renderer.sortObjects = true;
-renderer.localClippingEnabled = true;
 
 // Ensure the Point Cloud is always drawn "behind" the UI and lines
 pointCloud.renderOrder = 1;
@@ -887,6 +892,7 @@ environmentObjects.forEach(obj => obj.renderOrder = 2);
 
 animate();
 window.addEventListener('resize', () => {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();

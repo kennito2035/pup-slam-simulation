@@ -1,4 +1,4 @@
-# Parameter Uplink Spectagraph (PUP) v1.4.2
+# Parameter Uplink Spectagraph (PUP) v1.4.3
 
 A real-time 3D LiDAR SLAM simulation built with Three.js. PUP visualizes how different multi-sensor configurations scan and map an indoor environment as a drone traverses a corridor, rendering live point cloud heat maps, path traces, spatial analytics, and a 2D minimap overlay (prototype is inspired by Prometheus 2012).
 
@@ -27,7 +27,7 @@ A real-time 3D LiDAR SLAM simulation built with Three.js. PUP visualizes how dif
 ## File Structure
 
 ```
-PUP-v1.4.2.html   # Main entry point and UI markup
+PUP-v1.4.3.html   # Main entry point and UI markup
 script.js         # Simulation logic, Three.js scene, scanner math, minimap renderer
 styles.css        # Dark-mode UI styling
 ```
@@ -36,7 +36,7 @@ styles.css        # Dark-mode UI styling
 
 ## Usage
 
-Open `PUP-v1.4.2.html` in any modern browser. No build step or server required — all dependencies are loaded from CDN.
+Open `PUP-v1.4.3.html` in any modern browser. No build step or server required — all dependencies are loaded from CDN.
 
 > Requires an internet connection on first load to fetch Three.js (`r128`) and the Inter font.
 

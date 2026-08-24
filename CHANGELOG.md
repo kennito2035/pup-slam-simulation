@@ -4,6 +4,22 @@ All notable changes to Parameter Uplink Spectagraph (PUP) are documented here.
 
 ---
 
+## [1.4.3]: PUP-v1.4.3.html
+
+### Fixed
+- **Drone attitude restored on beam vectors**: the 1.4.2 raycaster rewrite dropped `applyEuler(drone.rotation)` from the beam direction and the hull offset vector while keeping it on the scan-plane normal. Beams, occlusion rays, and the minimap sensor markers ignored drone roll and pitch, so at higher wobble settings the attitude-rotated plane test and the fixed beam cone stopped overlapping and hit registration collapsed. Both vectors are rotated by the drone attitude again, matching the 1.4.1 behavior and the README feature description.
+- **Scan origin aligned with the rendered drone**: each sub-step ray origin now starts from `drone.position.z - step` (Z wobble included) and interpolates across the frame that just elapsed, instead of starting at the already-advanced `droneZ` and sampling up to two thirds of a step ahead of the drone while ignoring Z wobble.
+- **Min/max ranging distance cross-clamp**: the minimum slider can no longer be dragged above the current maximum, and the maximum can no longer be dragged below the current minimum. Previously min > max silently rejected every point with no feedback.
+
+### Changed
+- **Per-frame values hoisted out of the sub-step loop**: `offsetVec`, the attitude-rotated normal, and `hitThreshold` are computed once per scanner per frame; the beam direction reuses a module-level scratch vector instead of allocating a new `THREE.Vector3` every sub-step.
+- **HiDPI rendering**: `renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))` applied at startup and on resize. The canvas previously rendered at a pixel ratio of 1 and looked blurry on high-density displays.
+- **`RANGE_MIN` / `RANGE_MAX` used for defaults**: the hardcoded 0.05 and 12.00 literals in the scanner defaults and card template now reference the module constants; `RANGE_MIN` was previously declared but never used.
+- **Dead code removed**: leftover `ctx.font` assignment from the pre-1.4.1 canvas text overlay, and `renderer.localClippingEnabled = true` (no clipping planes exist in the scene).
+- **Version string**: `<title>` updated from `"PUP v1.4.2"` to `"PUP v1.4.3"`.
+
+---
+
 ## [1.4.2] — PUP-v1.4.2.html
 
 ### Added
